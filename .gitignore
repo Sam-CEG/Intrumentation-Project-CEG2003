@@ -361,3 +361,55 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Machine Learning models
+*.joblib
+*.pkl
+*.model
+
+# Results
+driver_risk_assessment.parquet
+ml_results/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+##
+
+
+
+
+# Data files (large files - don't push to GitHub)
+*.parquet
+*.xlsx
+*.xls
+
+# Machine Learning models
+*.joblib
+*.pkl
+*.model
+
+# Results and generated files
+driver_risk_assessment.parquet
+feature_importance.png
+ml_results/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+.python-version
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Streamlit cache
+.streamlit/

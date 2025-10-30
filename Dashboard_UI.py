@@ -267,3 +267,89 @@ try:
         )
 except FileNotFoundError:
     st.warning("Cannot load alarm comparison data. Check Cleaned_Mar24_alarms.parquet.")
+
+# ===============================================================
+# 12. MACHINE LEARNING: RISK PREDICTION RESULTS
+# ===============================================================
+st.markdown("---")
+st.header("Machine Learning: At-Risk Bus Captain Identification")
+
+try:
+    # Load risk assessment results
+    risk_df = pd.read_parquet("driver_risk_assessment.parquet")
+    
+    # Risk category filter
+    risk_categories = st.multiselect(
+        "Filter by Risk Category",
+        options=['Low Risk', 'Medium Risk', 'High Risk'],
+        default=['High Risk', 'Medium Risk']
+    )
+    
+    if risk_categories:
+        filtered_risk = risk_df[risk_df['risk_category'].isin(risk_categories)]
+    else:
+        filtered_risk = risk_df
+    
+    # Display risk summary
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("High Risk Drivers", 
+                len(risk_df[risk_df['risk_category'] == 'High Risk']))
+    col2.metric("Medium Risk Drivers", 
+                len(risk_df[risk_df['risk_category'] == 'Medium Risk']))
+    col3.metric("Low Risk Drivers", 
+                len(risk_df[risk_df['risk_category'] == 'Low Risk']))
+    col4.metric("Accuracy Rate", 
+                f"{(len(risk_df[risk_df['has_accident'] == 1]) / len(risk_df) * 100):.1f}%")
+    
+    # Top at-risk drivers table
+    st.subheader("At-Risk Drivers (Sorted by Risk Score)")
+    display_columns = ['driver', 'total_alarms', 'has_accident', 'risk_score', 'risk_category']
+    st.dataframe(
+        filtered_risk[display_columns]
+        .sort_values('risk_score', ascending=False)
+        .head(20)
+        .style.background_gradient(subset=['risk_score'], cmap='Reds')
+    )
+    
+    # Risk distribution plot
+    st.subheader("Risk Score Distribution")
+    fig_risk, ax_risk = plt.subplots(figsize=(10, 6))
+    sns.histplot(data=risk_df, x='risk_score', hue='has_accident', bins=30, ax=ax_risk)
+    ax_risk.set_xlabel("Risk Score")
+    ax_risk.set_ylabel("Number of Drivers")
+    ax_risk.legend(title='Had Accident', labels=['No', 'Yes'])
+    st.pyplot(fig_risk)
+    
+    # Risk vs Actual Accidents
+    st.subheader("Risk Categories vs Actual Accident History")
+    cross_tab = pd.crosstab(risk_df['risk_category'], risk_df['has_accident'])
+    cross_tab_percentage = cross_tab.div(cross_tab.sum(axis=1), axis=0) * 100
+    
+    fig_comp, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Count plot
+    cross_tab.plot(kind='bar', ax=ax1, color=['lightblue', 'red'])
+    ax1.set_title('Risk Category vs Accident Count')
+    ax1.set_xlabel('Risk Category')
+    ax1.set_ylabel('Number of Drivers')
+    ax1.legend(['No Accident', 'Had Accident'])
+    
+    # Percentage plot
+    cross_tab_percentage.plot(kind='bar', ax=ax2, color=['lightblue', 'red'])
+    ax2.set_title('Risk Category vs Accident Percentage')
+    ax2.set_xlabel('Risk Category')
+    ax2.set_ylabel('Percentage (%)')
+    ax2.legend(['No Accident', 'Had Accident'])
+    
+    plt.tight_layout()
+    st.pyplot(fig_comp)
+    
+except FileNotFoundError:
+    st.warning("""
+    Machine learning results not found. 
+    Please run the machine learning analysis first by executing:
+    ```python
+    from machine_learning import run_machine_learning_analysis
+    run_machine_learning_analysis()
+    ```
+    """)
