@@ -1,0 +1,13 @@
+Task,Model,AUC,Is_Best
+Accident Risk,Random Forest,0.571,True
+Accident Risk,Gradient Boosting,0.564,False
+Accident Risk,Logistic Regression,0.517,False
+Accident Risk,Neural Network,0.47,False
+Fatigue Risk,Logistic Regression,0.687,True
+Fatigue Risk,Gradient Boosting,0.655,False
+Fatigue Risk,Neural Network,0.627,False
+Fatigue Risk,Random Forest,0.622,False
+Speeding Risk,Logistic Regression,0.966,True
+Speeding Risk,Gradient Boosting,0.949,False
+Speeding Risk,Random Forest,0.935,False
+Speeding Risk,Neural Network,0.386,False
