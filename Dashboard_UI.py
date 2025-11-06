@@ -13,8 +13,94 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+st.title("🚌 Bus Captain Safety Dashboard")
+
 # ===============================================================
-# 1. LOAD DATA
+# 1. COMPREHENSIVE ALARM COUNT DISTRIBUTION (AT TOP)
+# ===============================================================
+st.markdown("## 📊 Comprehensive Alarm Count Distribution (All Drivers)")
+
+try:
+    df_alarm = pd.read_parquet("Cleaned_Mar24_alarms.parquet")
+
+    if "alarm type" not in df_alarm.columns:
+        st.warning("No 'alarm type' column found in alarm dataset.")
+    else:
+        # === Per-driver alarm counts per alarm type ===
+        alarm_counts = (
+            df_alarm.groupby(["driver", "alarm type"])
+            .size()
+            .reset_index(name="count")
+        )
+
+        alarm_types = sorted(alarm_counts["alarm type"].unique().tolist())
+
+        sns.set(style="whitegrid")
+        st.write(
+            "Each alarm type below shows three perspectives of its count distribution "
+            "(Boxplot, Histogram, and Violin plot) across all drivers."
+        )
+
+        for alarm in alarm_types:
+            subset = alarm_counts[alarm_counts["alarm type"] == alarm]
+            if subset.empty:
+                continue
+
+            fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+            fig.suptitle(f"{alarm.title()} – Alarm Count Distribution", fontsize=13, y=1.05)
+
+            # --- Boxplot ---
+            sns.boxplot(
+                data=subset,
+                y="count",
+                color="#7FB3D5",
+                width=0.3,
+                linewidth=1.2,
+                fliersize=3,
+                ax=axes[0]
+            )
+            axes[0].set_title("Boxplot", fontsize=11)
+            axes[0].set_xlabel("")
+            axes[0].set_ylabel("Alarm Count")
+
+            # --- Histogram ---
+            sns.histplot(
+                data=subset,
+                x="count",
+                bins=30,
+                kde=True,
+                color="#3498DB",
+                ax=axes[1]
+            )
+            axes[1].set_title("Histogram + KDE", fontsize=11)
+            axes[1].set_xlabel("Alarm Count")
+            axes[1].set_ylabel("Driver Frequency")
+
+            # --- Violin Plot ---
+            sns.violinplot(
+                data=subset,
+                y="count",
+                color="#5DADE2",
+                inner="box",
+                linewidth=1,
+                ax=axes[2]
+            )
+            axes[2].set_title("Violin Plot", fontsize=11)
+            axes[2].set_xlabel("")
+            axes[2].set_ylabel("")
+
+            for ax in axes:
+                ax.grid(True, linestyle="--", alpha=0.6)
+                sns.despine(ax=ax, offset=10, trim=True)
+
+            plt.tight_layout()
+            st.pyplot(fig)
+
+except FileNotFoundError:
+    st.warning("Alarm dataset not found (Cleaned_Mar24_alarms.parquet). Please run Analyze_data.py first.")
+
+# ===============================================================
+# 2. LOAD MAIN DRIVER DATA
 # ===============================================================
 USE_SAMPLE = False
 if USE_SAMPLE:
@@ -22,17 +108,15 @@ if USE_SAMPLE:
 else:
     merged_file = "Driver_Summary_Combined.parquet"
 
-st.title("🚌 Bus Captain Safety Dashboard")
-
 @st.cache_data
 def load_data(path):
     return pd.read_parquet(path)
 
 df = load_data(merged_file)
-st.write("Data loaded:", df.shape, "rows")
+st.write("✅ Main driver summary loaded:", df.shape, "rows")
 
 # ===============================================================
-# 2. SIDEBAR FILTERS
+# 3. SIDEBAR FILTERS
 # ===============================================================
 st.sidebar.header("Filter Options")
 
@@ -42,7 +126,6 @@ accident_filter = st.sidebar.radio(
     index=0
 )
 
-# Alarm range filter
 min_alarm, max_alarm = int(df["total_alarms"].min()), int(df["total_alarms"].max())
 alarm_range = st.sidebar.slider(
     "Select Alarm Count Range",
@@ -51,7 +134,6 @@ alarm_range = st.sidebar.slider(
     value=(min_alarm, max_alarm)
 )
 
-# Route filter
 if "routes" in df.columns:
     all_routes = sorted(
         {r.strip() for sublist in df["routes"].dropna().str.split(",") for r in sublist}
@@ -62,15 +144,11 @@ if "routes" in df.columns:
 else:
     selected_routes = []
 
-# Sort and Top N filter
-sort_column = st.sidebar.selectbox(
-    "Sort Drivers By",
-    options=["total_alarms", "avg_speed"]
-)
+sort_column = st.sidebar.selectbox("Sort Drivers By", options=["total_alarms", "avg_speed"])
 top_n = st.sidebar.slider("Number of Top Drivers to Display", 5, 30, 10)
 
 # ===============================================================
-# 3. APPLY FILTERS
+# 4. APPLY FILTERS
 # ===============================================================
 filtered_df = df[(df["total_alarms"] >= alarm_range[0]) & (df["total_alarms"] <= alarm_range[1])]
 
@@ -85,7 +163,7 @@ if selected_routes and "routes" in filtered_df.columns:
     )]
 
 # ===============================================================
-# 4. SUMMARY METRICS
+# 5. SUMMARY METRICS
 # ===============================================================
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Drivers", len(filtered_df))
@@ -94,7 +172,7 @@ col3.metric("Average Alarms per Driver", round(filtered_df["total_alarms"].mean(
 st.markdown("---")
 
 # ===============================================================
-# 5–11. VISUALIZATIONS (original)
+# 6. BASIC VISUALS
 # ===============================================================
 st.subheader("Distribution of Total Alarms per Driver")
 sns.set(style="whitegrid")
@@ -108,10 +186,29 @@ fig2, ax2 = plt.subplots(figsize=(10, 6))
 sns.barplot(x=sort_column, y="driver", data=top_drivers, palette="viridis", ax=ax2)
 st.pyplot(fig2)
 
+# ===============================================================
+# 7. BOX PLOT: Total Alarms by Accident
+# ===============================================================
 st.subheader("Total Alarms by Accident Involvement")
-fig3, ax3 = plt.subplots(figsize=(10, 6))
-sns.boxplot(x="has_accident", y="total_alarms", data=filtered_df, palette="pastel", ax=ax3)
-st.pyplot(fig3)
+
+fig_box, ax_box = plt.subplots(figsize=(8, 5))
+sns.set(style="whitegrid")
+palette = ["#7fb3d5", "#f5b7b1"]
+sns.boxplot(
+    data=filtered_df,
+    x="has_accident",
+    y="total_alarms",
+    palette=palette,
+    width=0.5,
+    linewidth=1.2,
+    fliersize=4
+)
+ax_box.set_xlabel("Has Accident (0 = No, 1 = Yes)", fontsize=12)
+ax_box.set_ylabel("Total Alarms", fontsize=12)
+ax_box.set_title("Distribution of Total Alarms by Accident Involvement", fontsize=13)
+ax_box.grid(True, axis="y", linestyle="--", alpha=0.7)
+sns.despine(offset=10, trim=True)
+st.pyplot(fig_box)
 
 if "avg_speed" in filtered_df.columns:
     st.subheader("Average Speed vs Total Alarms")
@@ -123,7 +220,7 @@ if "avg_speed" in filtered_df.columns:
     st.pyplot(fig4)
 
 # ===============================================================
-# 12. MACHINE LEARNING RESULTS (All Models Integrated)
+# 8. MACHINE LEARNING RESULTS
 # ===============================================================
 st.markdown("---")
 st.header("🤖 Machine Learning: At-Risk Bus Captain Identification")
@@ -139,9 +236,7 @@ fatigue_df = safe_load_parquet("driver_fatigue_risk.parquet")
 speed_df = safe_load_parquet("driver_speeding_risk.parquet")
 combined_df = safe_load_parquet("driver_combined_risk.parquet")
 
-# ===============================================================
-# 12.1 Filter by Risk Level (High / Medium / Low)
-# ===============================================================
+# 8.1 Filter by Risk Level
 if not risk_df.empty and "risk_category" in risk_df.columns:
     st.sidebar.subheader("Risk Category Filter")
     selected_risk_levels = st.sidebar.multiselect(
@@ -151,9 +246,7 @@ if not risk_df.empty and "risk_category" in risk_df.columns:
     )
     risk_df = risk_df[risk_df["risk_category"].isin(selected_risk_levels)]
 
-# ===============================================================
-# 12.2 Accident Risk Model
-# ===============================================================
+# 8.2 Accident Risk Model
 st.subheader("🚧 Accident Risk Model")
 if not risk_df.empty:
     st.dataframe(
@@ -170,9 +263,7 @@ if not risk_df.empty:
 else:
     st.info("Accident risk results not found.")
 
-# ===============================================================
-# 12.3 Fatigue Risk Model
-# ===============================================================
+# 8.3 Fatigue Risk Model
 st.subheader("😴 Fatigue Risk Model")
 if not fatigue_df.empty:
     st.dataframe(
@@ -188,9 +279,7 @@ if not fatigue_df.empty:
 else:
     st.info("Fatigue model data not found.")
 
-# ===============================================================
-# 12.4 Speeding Risk Model
-# ===============================================================
+# 8.4 Speeding Risk Model
 st.subheader("💨 Speeding Risk Model")
 if not speed_df.empty:
     st.dataframe(
@@ -206,9 +295,7 @@ if not speed_df.empty:
 else:
     st.info("Speeding model data not found.")
 
-# ===============================================================
-# 12.5 Combined Overall Risk
-# ===============================================================
+# 8.5 Combined Overall Risk
 st.subheader("🧠 Combined Overall Risk Index")
 if not combined_df.empty:
     st.dataframe(
@@ -226,7 +313,7 @@ else:
     st.info("Combined risk file not found.")
 
 # ===============================================================
-# 13. MODEL PERFORMANCE COMPARISON (Highlight Best)
+# 9. MODEL PERFORMANCE COMPARISON
 # ===============================================================
 st.markdown("---")
 st.header("📊 Model Performance Comparison (All Algorithms)")
