@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>86bced41-c633-49c9-92f5-7795945250c7</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Dashboard_UI.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -23,6 +23,8 @@
   <ItemGroup>
     <Compile Include="Analyze_data.py" />
     <Compile Include="Dashboard_UI.py" />
+    <Compile Include="Machine_Learning.py" />
+    <Compile Include="main.py" />
     <Compile Include="Merge.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
